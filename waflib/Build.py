@@ -150,7 +150,7 @@ class BuildContext(Context.Context):
 		self.task_gen_cache_names = {} # reset the cache, each time
 		self.add_to_group(ret, group=kw.get('group', None))
 		return ret
-	
+
 	def rule(self, *k, **kw):
 		"""
 		Wrapper for creating a task generator using the decorator notation. The following code::
@@ -187,6 +187,10 @@ class BuildContext(Context.Context):
 
 	def install_as(self, *k, **kw):
 		"""Actual implementation provided by :py:meth:`waflib.Build.InstallContext.install_as`"""
+		pass
+
+	def copytree(self, *k, **kw):
+		"""Actual implementation provided by :py:meth:`waflib.Build.InstallContext.copytree`"""
 		pass
 
 	def symlink_as(self, *k, **kw):
@@ -894,6 +898,14 @@ class inst(Task.Task):
 		destfile = self.get_install_path()
 		self.generator.bld.do_install(self.inputs[0].abspath(), destfile, self.chmod)
 
+        def exec_copytree(self):
+                """
+                Predefined method for copying directory tree
+                """
+                destfile = self.get_install_path()
+                Logs.error (destfile)
+                Logs.error (self.inputs[0].abspath())
+
 	def exec_symlink_as(self):
 		"""
 		Predefined method for installing a symlink
@@ -1076,6 +1088,39 @@ class InstallContext(BuildContext):
 		tsk.source = [srcfile]
 		tsk.dest = dest
 		tsk.exec_task = tsk.exec_install_as
+		if add: self.add_to_group(tsk)
+		self.run_task_now(tsk, postpone)
+		return tsk
+
+	def copytree(self, destDir, srcDir, env=None, symlinks=False, cwd=None, add=True, postpone=True):
+		"""
+		Create a task to copy tree to a destination location::
+
+			def build(bld):
+				bld.copytree('${PREFIX}/bin/share/DIR', 'share/DIR', symlinks=True)
+
+		:param destDir: absolute path of the destination directory name
+		:type dest: string
+		:param srcDir: input directory
+		:type srcfile: string or node
+		:param cwd: parent node for searching srdDir, when srdDir is not a :py:class:`waflib.Node.Node`
+		:type cwd: :py:class:`waflib.Node.Node`
+		:param env: configuration set for performing substitutions in dest
+		:type env: Configuration set
+                :param symlinks: copy symlinks as is
+                :type symlinks: bool
+		:param add: add the task created to a build group - set ``False`` only if the installation task is created after the build has started
+		:type add: bool
+		:param postpone: execute the task immediately to perform the installation
+		:type postpone: bool
+		"""
+		tsk = inst(env=env or self.env)
+		tsk.bld = self
+		tsk.path = cwd or self.path
+		tsk.symlinks = symlinks
+		tsk.srcDir = srcDir
+		tsk.destDir = destDir
+		tsk.exec_task = tsk.exec_copytree
 		if add: self.add_to_group(tsk)
 		self.run_task_now(tsk, postpone)
 		return tsk
