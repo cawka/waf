@@ -109,6 +109,23 @@ def create_task_macapp(self):
 					tsk = self.create_task('macapp', node, res_dir.make_node(rel))
 					self.bld.install_as(inst_to + '/%s' % rel, node)
 
+		if getattr(self,'mac_frameworks',None):
+			frameworks_dir=n1.parent.parent.make_node('Frameworks')
+			inst_to=getattr(self,'install_path','/Applications')+'/%s/Frameworks'%name
+			for x in self.to_list(self.mac_frameworks):
+				node=self.path.find_node(x)
+				if not node:
+					raise Errors.WafError('Missing mac_frameworks %r in %r'%(x,self))
+				parent=node.parent
+                                if not os.path.isdir(node.abspath()):
+                                        raise Errors.WafErorr('mac_frameworks need to specify framework directory')
+
+                                rel=node.path_from(parent)
+                                nodes = [i for i in node.ant_glob('**') if not os.path.islink(i.abspath())]
+                                tsk=self.create_task('macframework', nodes, frameworks_dir.make_node(rel))
+                                tsk.framework = node
+                                tsk.inst_to = inst_to
+
 		if getattr(self.bld, 'is_install', None):
 			# disable the normal binary installation
 			self.install_task.hasrun = Task.SKIP_ME
@@ -162,7 +179,7 @@ def apply_bundle(self):
 		if not 'MACBUNDLE' in use:
 			use.append('MACBUNDLE')
 
-app_dirs = ['Contents', 'Contents/MacOS', 'Contents/Resources']
+app_dirs = ['Contents', 'Contents/MacOS', 'Contents/Resources', 'Contents/Frameworks']
 
 class macapp(Task.Task):
 	"""
@@ -186,3 +203,26 @@ class macplist(Task.Task):
 			txt = self.inputs[0].read()
 		self.outputs[0].write(txt)
 
+class macframework(Task.Task):
+	"""
+	Copy local frameworks
+	"""
+	color='PINK'
+	def __str__(self):
+		"string to display to the user"
+		env = self.env
+                src_str = self.framework.nice_path()
+		tgt_str = self.outputs[0].nice_path()
+		if self.outputs: sep = ' -> '
+		else: sep = ''
+		return '%s: %s%s%s\n' % (self.__class__.__name__.replace('_task', ''), src_str, sep, tgt_str)
+        def runnable_status(self):
+                ret = super(macframework,self).runnable_status ()
+                if ret == Task.SKIP_ME and not os.path.isdir(self.outputs[0].abspath()):
+                        return Task.RUN_ME
+                else:
+                        return ret
+	def run(self):
+		self.outputs[0].parent.mkdir()
+                shutil.rmtree (self.outputs[0].abspath(), ignore_errors=True)
+                shutil.copytree (self.framework.abspath(), self.outputs[0].abspath(), symlinks=True)
