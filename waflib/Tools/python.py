@@ -412,10 +412,10 @@ def check_python_version(conf, minver=None):
 			if Utils.is_win32:
 				(python_LIBDEST, pydir) = conf.get_python_variables(
 					  ["get_config_var('LIBDEST') or ''",
-					   "get_python_lib(standard_lib=0, prefix=%r) or ''" % conf.env['PREFIX']])
+					   "get_python_lib(standard_lib=0) or ''"])
 			else:
 				python_LIBDEST = None
-				(pydir,) = conf.get_python_variables( ["get_python_lib(standard_lib=0, prefix=%r) or ''" % conf.env['PREFIX']])
+				(pydir,) = conf.get_python_variables( ["get_python_lib(standard_lib=0) or ''"])
 			if python_LIBDEST is None:
 				if conf.env['LIBDIR']:
 					python_LIBDEST = os.path.join(conf.env['LIBDIR'], "python" + pyver)
@@ -426,7 +426,7 @@ def check_python_version(conf, minver=None):
 		if 'PYTHONARCHDIR' in conf.environ:
 			pyarchdir = conf.environ['PYTHONARCHDIR']
 		else:
-			(pyarchdir, ) = conf.get_python_variables( ["get_python_lib(plat_specific=1, standard_lib=0, prefix=%r) or ''" % conf.env['PREFIX']])
+			(pyarchdir, ) = conf.get_python_variables( ["get_python_lib(plat_specific=1, standard_lib=0) or ''"])
 			if not pyarchdir:
 				pyarchdir = pydir
 
@@ -469,7 +469,7 @@ def check_python_module(conf, module_name, condition=''):
 	:param module_name: module
 	:type module_name: string
 	"""
-	msg = 'Python module %s' % module_name
+	msg = "Checking for python module '%s'" % module_name
 	if condition:
 		msg = '%s (%s)' % (msg, condition)
 	conf.start_msg(msg)
@@ -534,12 +534,12 @@ def options(opt):
 	Add python-specific options
 	"""
         pyopt=opt.add_option_group("Python Options")
-	opt.add_option('--nopyc',
+	pyopt.add_option('--nopyc',
 			action='store_false',
 			default=1,
 			help = 'Do not install bytecode compiled .pyc files (configuration) [Default:install]',
 			dest = 'pyc')
-	opt.add_option('--nopyo',
+	pyopt.add_option('--nopyo',
 			action='store_false',
 			default=1,
 			help='Do not install optimised compiled .pyo files (configuration) [Default:install]',
