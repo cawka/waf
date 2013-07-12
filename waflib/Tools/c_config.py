@@ -271,10 +271,13 @@ def exec_cfg(self, kw):
 	def define_it():
 		self.define(self.have_define(kw.get('uselib_store', kw['package'])), 1, 0)
 
+        env = kw.get('env', self.env)
+        run_env = env.env or os.environ
+
 	# pkg-config version
 	if 'atleast_pkgconfig_version' in kw:
 		cmd = [kw['path'], '--atleast-pkgconfig-version=%s' % kw['atleast_pkgconfig_version']]
-		self.cmd_and_log(cmd)
+		self.cmd_and_log(cmd, env=run_env)
 		if not 'okmsg' in kw:
 			kw['okmsg'] = 'yes'
 		return
@@ -283,7 +286,7 @@ def exec_cfg(self, kw):
 	for x in cfg_ver:
 		y = x.replace('-', '_')
 		if y in kw:
-			self.cmd_and_log([kw['path'], '--%s=%s' % (x, kw[y]), kw['package']])
+			self.cmd_and_log([kw['path'], '--%s=%s' % (x, kw[y]), kw['package']], env=run_env)
 			if not 'okmsg' in kw:
 				kw['okmsg'] = 'yes'
 			define_it()
@@ -291,7 +294,7 @@ def exec_cfg(self, kw):
 
 	# retrieving the version of a module
 	if 'modversion' in kw:
-		version = self.cmd_and_log([kw['path'], '--modversion', kw['modversion']]).strip()
+		version = self.cmd_and_log([kw['path'], '--modversion', kw['modversion']], env=run_env).strip()
 		self.define('%s_VERSION' % Utils.quote_define_name(kw.get('uselib_store', kw['modversion'])), version)
 		return version
 
@@ -305,11 +308,10 @@ def exec_cfg(self, kw):
 
 	# retrieving variables of a module
 	if 'variables' in kw:
-		env = kw.get('env', self.env)
 		uselib = kw.get('uselib_store', kw['package'].upper())
 		vars = Utils.to_list(kw['variables'])
 		for v in vars:
-			val = self.cmd_and_log(lst + ['--variable=' + v]).strip()
+			val = self.cmd_and_log(lst + ['--variable=' + v], env=run_env).strip()
 			var = '%s_%s' % (uselib, v)
 			env[var] = val
 		if not 'okmsg' in kw:
@@ -327,7 +329,7 @@ def exec_cfg(self, kw):
 	lst.extend(Utils.to_list(kw['package']))
 
 	# so we assume the command-line will output flags to be parsed afterwards
-	ret = self.cmd_and_log(lst)
+	ret = self.cmd_and_log(lst, env=run_env)
 	if not 'okmsg' in kw:
 		kw['okmsg'] = 'yes'
 
