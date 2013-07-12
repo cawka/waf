@@ -311,7 +311,7 @@ def check_python_headers(conf):
 	# We check that pythonX.Y-config exists, and if it exists we
 	# use it to get only the includes, else fall back to distutils.
 	num = '.'.join(env['PYTHON_VERSION'].split('.')[:2])
-	conf.find_program([''.join(pybin) + '-config', 'python%s-config' % num, 'python-config-%s' % num, 'python%sm-config' % num], var='PYTHON_CONFIG', mandatory=False)
+	conf.find_program([''.join(pybin) + '-config', 'python%s-config' % num, 'python-config-%s' % num, 'python%sm-config' % num], var='PYTHON_CONFIG', display_name="python-config", mandatory=False)
 
 	includes = []
 	if conf.env.PYTHON_CONFIG:
@@ -505,17 +505,23 @@ def configure(conf):
 	"""
 	Detect the python interpreter
 	"""
+	v = conf.env
+        if not v['PYTHON']:
+                v['PYTHON']=getattr(Options.options,'python',None) or sys.executable
+        if not v['PYTHONDIR'] and Options.options.pythondir:
+                v['PYTHONDIR'] = Options.options.pythondir
+        if not v['PYTHONARCHDIR'] and Options.options.pythonarchdir:
+                v['PYTHONARCHDIR'] = Options.options.pythonarchdir
 	try:
 		conf.find_program('python', var='PYTHON')
 	except conf.errors.ConfigurationError:
 		Logs.warn("could not find a python executable, setting to sys.executable '%s'" % sys.executable)
 		conf.env.PYTHON = sys.executable
 
-	if conf.env.PYTHON != sys.executable:
-		Logs.warn("python executable %r differs from system %r" % (conf.env.PYTHON, sys.executable))
+	# if conf.env.PYTHON != sys.executable:
+	# 	Logs.warn("python executable %r differs from system %r" % (conf.env.PYTHON, sys.executable))
 	conf.env.PYTHON = conf.cmd_to_list(conf.env.PYTHON)
 
-	v = conf.env
 	v['PYCMD'] = '"import sys, py_compile;py_compile.compile(sys.argv[1], sys.argv[2])"'
 	v['PYFLAGS'] = ''
 	v['PYFLAGS_OPT'] = '-O'
@@ -525,8 +531,9 @@ def configure(conf):
 
 def options(opt):
 	"""
-	Add the options ``--nopyc`` and ``--nopyo``
+	Add python-specific options
 	"""
+        pyopt=opt.add_option_group("Python Options")
 	opt.add_option('--nopyc',
 			action='store_false',
 			default=1,
@@ -537,4 +544,12 @@ def options(opt):
 			default=1,
 			help='Do not install optimised compiled .pyo files (configuration) [Default:install]',
 			dest='pyo')
-
+        pyopt.add_option('--python',
+                         help='python binary to be used [Default: %s]' % sys.executable,
+                         dest="python")
+        pyopt.add_option('--pythondir',
+                         help='Installation path for python modules (py, platform-independent .py and .pyc files)',
+                         dest='pythondir')
+        pyopt.add_option('--pythonarchdir',
+                         help='Installation path for python extension (pyext, platform-dependent .so or .dylib files)',
+                         dest='pythonarchdir')

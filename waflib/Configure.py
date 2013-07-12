@@ -485,6 +485,8 @@ def find_program(self, filename, **kw):
 	:type var: string
 	:param ext: list of extensions for the binary (do not add an extension for portability)
 	:type ext: list of string
+        :param display_name: name to display in the log, by default filename is used
+        :type display_name: string
 	"""
 
 	exts = kw.get('exts', Utils.is_win32 and '.exe,.com,.bat,.cmd' or ',.sh,.pl,.py')
@@ -531,7 +533,8 @@ def find_program(self, filename, **kw):
 	if not ret and Utils.winreg:
 		ret = Utils.get_registry_app_path(Utils.winreg.HKEY_LOCAL_MACHINE, filename)
 
-	self.msg('Checking for program ' + ','.join(filename), ret or False)
+        display_name = kw.get('display_name', ', '.join(filename))
+	self.msg('Checking for program %s' % display_name, ret or False)
 	self.to_log('find program=%r paths=%r var=%r -> %r' % (filename, path_list, var, ret))
 
 	if not ret:
