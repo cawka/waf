@@ -18,7 +18,7 @@ Options are generated, in order to specify the location of ndnx includes/librari
 
 
 '''
-import sys
+import sys, re
 from waflib import Utils, Logs, Errors, Options, ConfigSet
 from waflib.Configure import conf
 
@@ -61,65 +61,73 @@ def check_openssl(self,*k,**kw):
         mandatory = kw.get('mandatory', True)
         var = kw.get('var', 'SSL')
 
-        if root:
-                self.check_cc (lib='crypto ssl',
-                               header_name='openssl/crypto.h',
-                               define_name='HAVE_%s' % var,
-                               uselib_store=var,
-                               mandatory = mandatory,
-                               cflags="-I%s/include" % root,
-                               linkflags="-L%s/lib" % root)
-        else:
-                libcrypto = self.check_cc (lib='crypto ssl',
-                                           header_name='openssl/crypto.h',
-                                           define_name='HAVE_%s' % var,
-                                           uselib_store=var,
-                                           mandatory = mandatory)
-                
-        #         # env = self.env
-        #         # self.env.env = {"PKG_CONFIG_PATH": "%s/lib/pkgconfig" % root}
-        #         # try:
-        #         #         libcrypto = self.check_cfg (package='openssl', args=['--cflags', '--libs'], 
-        #         #                                     uselib_store=var, mandatory=True,
-        #         #                                     env = env)
-        #         # except:
-        #         #         try:
-        #         #                 libcrypto = self.check_cfg (package='ssl', args=['--cflags', '--libs'], 
-        #         #                                             uselib_store=var, mandatory=True,
-        #         #                                             env = env)
-        #         #         except:
-        #         #                 libcrypto = self.check_cc (lib='crypto ssl',
-        #         #                                            header_name='openssl/crypto.h',
-        #         #                                            define_name='HAVE_%s' % var,
-        #         #                                            uselib_store=var,
-        #         #                                            mandatory = mandatory,
-        #         #                                            cflags="-I%s/include" % root,
-        #         #                                            linkflags="-L%s/lib" % root)
-        #         #                 if not libcrypto:
-        #         #                         raise
-        #         # else:
-        #         #         self.define ("HAVE_%s" % var, 1)
-        # else:
-        #         try:
-        #                 libcrypto = self.check_cfg (package='openssl', args=['--cflags', '--libs'], 
-        #                                             uselib_store=var, mandatory=True)
-        #         except:
-        #                 try:
-        #                         libcrypto = self.check_cfg (package='ssl', args=['--cflags', '--libs'], 
-        #                                                     uselib_store=var, mandatory=True)
-        #                 except:
-        #                         libcrypto = self.check_cc (lib='crypto ssl',
-        #                                                    header_name='openssl/crypto.h',
-        #                                                    define_name='HAVE_%s' % var,
-        #                                                    uselib_store=var,
-        #                                                    mandatory = mandatory)
-        #                 if not libcrypto:
-        #                     raise
-        #         else:
-        #                 self.define ("HAVE_%s" % var, 1)
+        CODE = """
+#include <openssl/crypto.h>
+#include <stdio.h>
 
-        # if not self.get_define ("HAVE_%s" % var):
-        #         self.fatal ("Cannot find SSL libraries")
+int main(int argc, char **argv) {
+	(void)argc;
+        printf ("%s", argv[0]);
+
+	return 0;
+}
+"""
+        if root:
+                testApp = self.check_cc (lib=['ssl', 'crypto'],
+                                         header_name='openssl/crypto.h',
+                                         define_name='HAVE_%s' % var,
+                                         uselib_store=var,
+                                         mandatory = mandatory,
+                                         cflags="-I%s/include" % root,
+                                         linkflags="-L%s/lib" % root,
+                                         execute = True, fragment = CODE, define_ret = True)
+        else:
+                testApp = libcrypto = self.check_cc (lib=['ssl', 'crypto'],
+                                                     header_name='openssl/crypto.h',
+                                                     define_name='HAVE_%s' % var,
+                                                     uselib_store=var,
+                                                     mandatory = mandatory,
+                                                     execute = True, fragment = CODE, define_ret = True)
+
+        if not testApp:
+                return
+
+        self.start_msg ('Checking if selected openssl matches NDNx')
+
+        ndn_var = kw.get('ndn_var', "NDNX")
+        if Utils.unversioned_sys_platform () == "darwin":
+                def otool (binary):
+                        p = Utils.subprocess.Popen (['/usr/bin/otool', '-L', binary], 
+                                                    stdout = Utils.subprocess.PIPE, )
+                        for line in p.communicate()[0].split ('\n'):
+                                if re.match ('.*/libcrypto\..*', line):
+                                        return line
+
+                selected_crypto = otool (testApp)
+                ccnd_crypto = otool ('%s/bin/ccnd' % self.env['%s_ROOT' % ndn_var])
+
+                if ccnd_crypto != selected_crypto:
+                        self.fatal ("Selected openssl does not match used to compile NDNx (%s != %s)" % 
+                                    (selected_crypto.strip (), ccnd_crypto.strip ()))
+                self.end_msg (True)
+
+        elif Utils.unversioned_sys_platform () == "linux" or  Utils.unversioned_sys_platform () == "freebsd":
+                def ldd (binary):
+                        p = Utils.subprocess.Popen (['/usr/bin/ldd', binary], 
+                                                        stdout = Utils.subprocess.PIPE, )
+                        for line in p.communicate()[0].split ('\n'):
+                                if re.match ('libcrypto\..*', line):
+                                        return line
+
+                selected_crypto = ldd (testApp)
+                ccnd_crypto = ldd ('%s/bin/ccnd' % self.env['%s_ROOT' % ndn_var])
+
+                if ccnd_crypto != selected_crypto:
+                        self.fatal ("Selected openssl does not match used to compile NDNx (%s != %s)" % 
+                                    (selected_crypto.strip (), ccnd_crypto.strip ()))
+                self.end_msg (True)
+        elif:
+                self.end_msg ("Don't know how to check", 'YELLOW')
 
 @conf
 def check_ndnx(self,*k,**kw):
