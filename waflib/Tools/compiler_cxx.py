@@ -47,6 +47,7 @@ cxx_compiler = {
 'hpux':   ['g++'],
 'gnu':    ['g++', 'clang++'],
 'java':   ['g++', 'msvc', 'clang++', 'icpc'],
+'freebsd':['clang++', 'g++'],
 'default': ['g++', 'clang++']
 }
 """
