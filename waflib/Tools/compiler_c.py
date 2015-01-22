@@ -47,6 +47,7 @@ c_compiler = {
 'osf1V':  ['gcc'],
 'gnu':    ['gcc', 'clang'],
 'java':   ['gcc', 'msvc', 'clang', 'icc'],
+'freebsd':['clang', 'gcc'],
 'default':['gcc', 'clang'],
 }
 """
