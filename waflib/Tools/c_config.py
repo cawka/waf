@@ -982,6 +982,8 @@ def get_cc_version(conf, cc, gcc=False, icc=False, clang=False):
 	if gcc:
 		if out.find('__INTEL_COMPILER') >= 0:
 			conf.fatal('The intel compiler pretends to be gcc')
+		if out.find('__clang__') >= 0:
+			conf.fatal('The clang compiler pretends to be gcc')
 		if out.find('__GNUC__') < 0 and out.find('__clang__') < 0:
 			conf.fatal('Could not determine the compiler type')
 
